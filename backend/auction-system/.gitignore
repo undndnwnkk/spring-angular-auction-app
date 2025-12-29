@@ -1,0 +1,7 @@
+.env
+gradle/
+.gradle/
+build/
+out/
+.idea/
+*.class

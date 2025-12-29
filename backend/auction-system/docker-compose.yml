@@ -1,0 +1,14 @@
+services:
+  catalog-db:
+    image: postgres:16.11-alpine3.23
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: ${DB_URL}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - catalog-db-data:/var/lib/postgresql/data
+
+volumes:
+  catalog-db-data:

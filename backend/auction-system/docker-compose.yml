@@ -1,14 +1,31 @@
 services:
   catalog-db:
     image: postgres:16.11-alpine3.23
+    container_name: catalog-db
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
-      POSTGRES_DB: ${DB_URL}
+      POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - catalog-db-data:/var/lib/postgresql/data
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: catalog-service/Dockerfile
+    container_name: catalog-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://catalog-db:5432/${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      - catalog-db
+    env_file:
+      - .env
 
 volumes:
   catalog-db-data:

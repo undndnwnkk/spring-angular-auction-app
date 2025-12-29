@@ -34,16 +34,18 @@ public class ProductService {
         return mapToResponse(savedProduct);
     }
 
-    public List<ProductResponse> getAllProducts() {
-        return productRepository.findAll().stream()
-                .map(this::mapToResponse).toList();
-    }
+    public List<ProductResponse> getProducts(UUID categoryId) {
+        List<Product> products;
 
-    public List<ProductResponse> getAllProductsByCategory(String categoryId) {
-        UUID uuid = UUID.fromString(categoryId);
+        if (categoryId != null) {
+            products = productRepository.findByCategoryId(categoryId);
+        } else {
+            products = productRepository.findAllWithCategories();
+        }
 
-        return productRepository.findByCategoryId(uuid).stream()
-                .map(this::mapToResponse).toList();
+        return products.stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     private ProductResponse mapToResponse(Product product) {

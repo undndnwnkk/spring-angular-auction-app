@@ -5,11 +5,11 @@ COPY . .
 
 RUN sed -i '/org.gradle.java.home/d' gradle.properties
 
-RUN ./gradlew :catalog-service:build -x test
+RUN ./gradlew :api-gateway:build -x test
 
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
-COPY --from=builder /app/catalog-service/build/libs/*.jar app.jar
+COPY --from=builder /app/api-gateway/build/libs/*.jar app.jar
 
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>STOMP Test</title>
+</head>
+<body>
+<h3>STOMP Test Client</h3>
+
+<div>
+    <label>WebSocket URL:</label>
+    <input id="wsUrl" size="40" value="ws://localhost:8080/ws" />
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn">Disconnect</button>
+</div>
+
+<div style="margin-top: 10px;">
+    <label>Lot ID:</label>
+    <input id="lotId" size="40" value="f9f557b0-1db1-4186-9ab3-c26975c63282" />
+    <button id="subscribeBtn">Subscribe to /topic/lot/{id}</button>
+</div>
+
+<div style="margin-top: 10px;">
+    <label>Send destination:</label>
+    <input id="sendDest" size="40" value="/app/test" />
+</div>
+<div style="margin-top: 5px;">
+    <label>Payload (JSON):</label><br/>
+    <textarea id="sendBody" rows="4" cols="60">{ "text": "hello" }</textarea><br/>
+    <button id="sendBtn">SEND</button>
+</div>
+
+<h4>Log</h4>
+<pre id="log" style="border:1px solid #ccc; padding:5px; max-height:300px; overflow:auto;"></pre>
+
+<script src="https://unpkg.com/@stomp/stompjs@6.1.2/bundles/stomp.umd.min.js"></script>
+
+<script>
+    const logEl = document.getElementById('log');
+    const wsUrlEl = document.getElementById('wsUrl');
+    const lotIdEl = document.getElementById('lotId');
+    const sendDestEl = document.getElementById('sendDest');
+    const sendBodyEl = document.getElementById('sendBody');
+
+    let client = null;
+    let subscription = null;
+
+    function log(msg) {
+        const time = new Date().toISOString().substr(11, 8);
+        logEl.textContent += `[${time}] ${msg}\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    document.getElementById('connectBtn').onclick = () => {
+        if (client && client.active) {
+            log('Already connected');
+            return;
+        }
+        client = new StompJs.Client({
+            brokerURL: wsUrlEl.value,
+            reconnectDelay: 5000,
+            debug: (str) => log('DEBUG ' + str),
+        });
+
+        client.onConnect = (frame) => {
+            log('CONNECTED ' + JSON.stringify(frame.headers));
+        };
+
+        client.onStompError = (frame) => {
+            log('STOMP ERROR ' + frame.headers['message'] + ' ' + frame.body);
+        };
+
+        client.onWebSocketError = (event) => {
+            log('WEBSOCKET ERROR ' + event);
+        };
+
+        client.activate();
+        log('Connecting...');
+    };
+
+    document.getElementById('disconnectBtn').onclick = () => {
+        if (client) {
+            client.deactivate();
+            log('Disconnected');
+        }
+    };
+
+    document.getElementById('subscribeBtn').onclick = () => {
+        if (!client || !client.active) {
+            log('Not connected');
+            return;
+        }
+        const dest = '/topic/lot/' + lotIdEl.value;
+        if (subscription) {
+            subscription.unsubscribe();
+        }
+        subscription = client.subscribe(dest, (message) => {
+            log('MESSAGE from ' + dest + ': ' + message.body);
+        });
+        log('Subscribed to ' + dest);
+    };
+
+    document.getElementById('sendBtn').onclick = () => {
+        if (!client || !client.active) {
+            log('Not connected');
+            return;
+        }
+        const dest = sendDestEl.value;
+        const body = sendBodyEl.value;
+        client.publish({ destination: dest, body: body });
+        log('SENT to ' + dest + ': ' + body);
+    };
+</script>
+</body>
+</html>

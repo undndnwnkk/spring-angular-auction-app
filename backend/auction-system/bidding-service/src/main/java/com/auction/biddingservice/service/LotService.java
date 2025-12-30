@@ -8,6 +8,7 @@ import com.auction.biddingservice.model.Lot;
 import com.auction.biddingservice.model.LotStatus;
 import com.auction.biddingservice.repository.BidRepository;
 import com.auction.biddingservice.repository.LotRepository;
+import com.auction.common.BidPlacedEvent;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;

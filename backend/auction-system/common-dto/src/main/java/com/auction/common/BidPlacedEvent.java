@@ -1,4 +1,4 @@
-package com.auction.biddingservice.dto;
+package com.auction.common;
 
 import lombok.Builder;
 

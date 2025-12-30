@@ -82,6 +82,18 @@ services:
     env_file:
       - .env
 
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: notification-service
+    ports:
+      - "8083:8083"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - kafka
+
   api-gateway:
     build:
       context: .
@@ -92,6 +104,7 @@ services:
     depends_on:
       - catalog-service
       - bidding-service
+      - notification-service
 
 
 volumes:

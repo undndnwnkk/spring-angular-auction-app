@@ -5,11 +5,23 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${CATALOG_DB_NAME}
+      POSTGRES_USER: ${CATALOG_DB_USERNAME}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
     volumes:
       - catalog-db-data:/var/lib/postgresql/data
+
+  bidding-db:
+    image: postgres:16.11-alpine3.23
+    container_name: bidding-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${BIDDING_DB_NAME}
+      POSTGRES_USER: ${BIDDING_DB_USERNAME}
+      POSTGRES_PASSWORD: ${BIDDING_DB_PASSWORD}
+    volumes:
+      - bidding-db-data:/var/lib/postgresql/data
 
   catalog-service:
     build:
@@ -19,11 +31,27 @@ services:
     ports:
       - "8081:8081"
     environment:
-      DB_URL: jdbc:postgresql://catalog-db:5432/${DB_NAME}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_URL: jdbc:postgresql://catalog-db:5432/${CATALOG_DB_NAME}
+      DB_USERNAME: ${CATALOG_DB_USERNAME}
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
     depends_on:
       - catalog-db
+    env_file:
+      - .env
+
+  bidding-service:
+    build:
+      context: .
+      dockerfile: bidding-service/Dockerfile
+    container_name: bidding-service
+    environment:
+      DB_URL: jdbc:postgresql://bidding-db:5432/${BIDDING_DB_NAME}
+      DB_USERNAME: ${BIDDING_DB_USERNAME}
+      DB_PASSWORD: ${BIDDING_DB_PASSWORD}
+    ports:
+      - "8082:8082"
+    depends_on:
+      - bidding-db
     env_file:
       - .env
 
@@ -36,7 +64,9 @@ services:
       - "8080:8080"
     depends_on:
       - catalog-service
+      - bidding-service
 
 
 volumes:
   catalog-db-data:
+  bidding-db-data:

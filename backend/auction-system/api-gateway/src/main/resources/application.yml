@@ -16,6 +16,11 @@ spring:
               filters:
                 - RewritePath=/api/v1/catalog/(?<segment>.*), /api/v1/$\{segment}
 
+            - id: bidding-route
+              uri: http://bidding-service:8082
+              predicates:
+                - Path=/api/v1/bidding/**
+
 logging:
   level:
     org.springframework.cloud.gateway: TRACE

@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-lots-and-bids-tables
+      author: undndnwnkk
+      changes:
+        - createTable:
+            tableName: lots
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: product_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_price
+                  type: decimal
+                  constraints:
+                    nullable: false
+              - column:
+                  name: min_step
+                  type: decimal
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_time
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(55)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValue: "0"
+
+        - createTable:
+            tableName: bids
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: lot_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bid_amount
+                  type: decimal
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+
+        - addForeignKeyConstraint:
+            baseTableName: bids
+            baseColumnNames: lot_id
+            constraintName: fk_bid_lot
+            referencedTableName: lots
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - sql:
+            sql: >
+              ALTER TABLE lots
+              ADD CONSTRAINT lots_price_positive
+              CHECK (current_price > 0)
+
+        - sql:
+            sql: >
+              ALTER TABLE bids
+              ADD CONSTRAINT bids_amount_positive
+              CHECK (bid_amount > 0)

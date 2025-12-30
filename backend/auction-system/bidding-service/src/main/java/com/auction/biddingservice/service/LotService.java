@@ -1,8 +1,11 @@
 package com.auction.biddingservice.service;
 
 import com.auction.biddingservice.dto.BidResponse;
+import com.auction.biddingservice.dto.LotCreateRequest;
 import com.auction.biddingservice.dto.LotRequest;
 import com.auction.biddingservice.dto.LotResponse;
+import com.auction.biddingservice.exception.IncorrectBidInformationException;
+import com.auction.biddingservice.exception.IncorrectLotInformationException;
 import com.auction.biddingservice.model.Bid;
 import com.auction.biddingservice.model.Lot;
 import com.auction.biddingservice.model.LotStatus;
@@ -13,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,16 +28,16 @@ public class LotService {
     @Transactional
     public LotResponse placeBid(LotRequest lotRequest) {
         Lot lot = lotRepository.findById(lotRequest.id())
-                .orElseThrow(() -> new RuntimeException("Lot not found"));
+                .orElseThrow(() -> new IncorrectLotInformationException("Lot not found"));
 
         if (lot.getStatus() == LotStatus.ACTIVE) {
             BigDecimal minAllowedPrice = lot.getCurrentPrice().add(lot.getMinStep());
             if (lotRequest.price().compareTo(minAllowedPrice) < 0) {
-                throw new RuntimeException("Bid too low");
+                throw new IncorrectBidInformationException("Bid too low");
             } else {
                 lot.setCurrentPrice(lotRequest.price());
             }
-        } else throw new RuntimeException("Lot is not active");
+        } else throw new IncorrectLotInformationException("Lot is not active");
 
         Lot newLot = lotRepository.save(lot);
         Bid bid = Bid.builder()
@@ -50,13 +52,29 @@ public class LotService {
 
     public List<BidResponse> getAllBidsByLotId(UUID lotId) {
         List<Bid> bids = bidRepository.getBidsByLotId(lotId)
-                .orElseThrow(() -> new RuntimeException("Bid not found"));
+                .orElseThrow(() -> new IncorrectLotInformationException("Lot not found"));
 
         return bids.stream().map(this::mapToResponse).toList();
     }
 
+    @Transactional
+    public LotResponse createLot(LotCreateRequest request) {
+        Lot lot = Lot.builder()
+                .productId(request.productId())
+                .currentPrice(request.price())
+                .minStep(request.minStep())
+                .endTime(request.endTime())
+                .status(LotStatus.ACTIVE)
+                .build();
+
+        lot = lotRepository.save(lot);
+
+        return mapToResponse(lot);
+    }
+
     private LotResponse mapToResponse(Lot lot) {
         return LotResponse.builder()
+                .id(lot.getId())
                 .productId(lot.getProductId())
                 .currentPrice(lot.getCurrentPrice())
                 .minStep(lot.getMinStep())

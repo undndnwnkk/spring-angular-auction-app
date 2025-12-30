@@ -7,5 +7,5 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Builder
-public record LotResponse(UUID productId, BigDecimal currentPrice, BigDecimal minStep, Instant endTime, String status) {
+public record LotResponse(UUID id, UUID productId, BigDecimal currentPrice, BigDecimal minStep, Instant endTime, String status) {
 }

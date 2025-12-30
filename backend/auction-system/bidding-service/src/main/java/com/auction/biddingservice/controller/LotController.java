@@ -1,6 +1,7 @@
 package com.auction.biddingservice.controller;
 
 import com.auction.biddingservice.dto.BidResponse;
+import com.auction.biddingservice.dto.LotCreateRequest;
 import com.auction.biddingservice.dto.LotRequest;
 import com.auction.biddingservice.dto.LotResponse;
 import com.auction.biddingservice.service.LotService;
@@ -28,5 +29,10 @@ public class LotController {
     @PostMapping("/place")
     public ResponseEntity<LotResponse> placeBid(@Valid @RequestBody LotRequest lotRequest) {
         return ResponseEntity.ok(lotService.placeBid(lotRequest));
+    }
+
+    @PostMapping
+    public ResponseEntity<LotResponse> placeLot(@Valid @RequestBody LotCreateRequest lotRequest) {
+        return ResponseEntity.ok(lotService.createLot(lotRequest));
     }
 }

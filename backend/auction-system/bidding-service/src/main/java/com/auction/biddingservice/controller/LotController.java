@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,12 @@ public class LotController {
     public ResponseEntity<List<BidResponse>> getLotHistory(@PathVariable UUID lotId) {
         List<BidResponse> result = lotService.getAllBidsByLotId(lotId);
 
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{lotId}/price")
+    public ResponseEntity<BigDecimal> getCurrentPrice(@PathVariable UUID lotId) {
+        BigDecimal result = lotService.getCurrentPrice(lotId);
         return ResponseEntity.ok(result);
     }
 

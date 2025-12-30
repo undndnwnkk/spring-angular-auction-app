@@ -23,6 +23,12 @@ services:
     volumes:
       - bidding-db-data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: auction-redis
+    ports:
+      - "6379:6379"
+
   catalog-service:
     build:
       context: .
@@ -48,6 +54,7 @@ services:
       DB_URL: jdbc:postgresql://bidding-db:5432/${BIDDING_DB_NAME}
       DB_USERNAME: ${BIDDING_DB_USERNAME}
       DB_PASSWORD: ${BIDDING_DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
     ports:
       - "8082:8082"
     depends_on:

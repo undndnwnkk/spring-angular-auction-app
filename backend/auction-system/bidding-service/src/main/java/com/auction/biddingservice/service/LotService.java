@@ -13,7 +13,10 @@ import com.auction.biddingservice.repository.BidRepository;
 import com.auction.biddingservice.repository.LotRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.UUID;
 public class LotService {
     private final LotRepository lotRepository;
     private final BidRepository bidRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Transactional
     public LotResponse placeBid(LotRequest lotRequest) {
@@ -47,6 +51,17 @@ public class LotService {
                 .build();
         bidRepository.save(bid);
 
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    String redisKey = createKeyForRedis(newLot.getId());
+                    String redisValue = newLot.getCurrentPrice().toString();
+                    redisTemplate.opsForValue().set(redisKey, redisValue);
+                }
+            });
+        }
+
         return mapToResponse(newLot);
     }
 
@@ -68,8 +83,27 @@ public class LotService {
                 .build();
 
         lot = lotRepository.save(lot);
+        String redisKey = createKeyForRedis(lot.getId());
+        String redisValue = lot.getCurrentPrice().toString();
 
+        redisTemplate.opsForValue().set(redisKey, redisValue);
         return mapToResponse(lot);
+    }
+
+    public BigDecimal getCurrentPrice(UUID lotId) {
+        String redisKey = createKeyForRedis(lotId);
+
+        String redisPrice = redisTemplate.opsForValue().get(redisKey);
+        if (redisPrice != null) {
+            return new BigDecimal(redisPrice);
+        }
+
+        Lot lot = lotRepository.findById(lotId)
+                .orElseThrow(() -> new IncorrectLotInformationException("Lot not found"));
+
+        String redisValue = lot.getCurrentPrice().toString();
+        redisTemplate.opsForValue().set(redisKey, redisValue);
+        return lot.getCurrentPrice();
     }
 
     private LotResponse mapToResponse(Lot lot) {
@@ -88,5 +122,9 @@ public class LotService {
                 .bidAmount(bid.getBidAmount())
                 .createdAt(bid.getCreatedAt())
                 .build();
+    }
+
+    private String createKeyForRedis(UUID lotId) {
+        return "lot:price:" + lotId.toString();
     }
 }

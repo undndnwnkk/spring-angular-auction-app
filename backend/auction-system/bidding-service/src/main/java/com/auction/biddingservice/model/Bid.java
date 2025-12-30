@@ -32,7 +32,7 @@ public class Bid {
     @DecimalMin("1")
     private BigDecimal bidAmount;
 
-    @Column(name = "created_at", nullable = false, insertable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
 

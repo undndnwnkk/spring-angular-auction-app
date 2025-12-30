@@ -1,9 +1,6 @@
 package com.auction.biddingservice.service;
 
-import com.auction.biddingservice.dto.BidResponse;
-import com.auction.biddingservice.dto.LotCreateRequest;
-import com.auction.biddingservice.dto.LotRequest;
-import com.auction.biddingservice.dto.LotResponse;
+import com.auction.biddingservice.dto.*;
 import com.auction.biddingservice.exception.IncorrectBidInformationException;
 import com.auction.biddingservice.exception.IncorrectLotInformationException;
 import com.auction.biddingservice.model.Bid;
@@ -14,11 +11,13 @@ import com.auction.biddingservice.repository.LotRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +27,7 @@ public class LotService {
     private final LotRepository lotRepository;
     private final BidRepository bidRepository;
     private final RedisTemplate<String, String> redisTemplate;
+    private final KafkaTemplate<String, BidPlacedEvent> kafkaTemplate;
 
     @Transactional
     public LotResponse placeBid(LotRequest lotRequest) {
@@ -48,6 +48,7 @@ public class LotService {
                 .lot(lot)
                 .userId(UUID.randomUUID())
                 .bidAmount(lot.getCurrentPrice())
+                .createdAt(Instant.now())
                 .build();
         bidRepository.save(bid);
 
@@ -58,6 +59,8 @@ public class LotService {
                     String redisKey = createKeyForRedis(newLot.getId());
                     String redisValue = newLot.getCurrentPrice().toString();
                     redisTemplate.opsForValue().set(redisKey, redisValue);
+
+                    kafkaTemplate.send("lot-price-updates", mapToKafkaMessage(bid));
                 }
             });
         }
@@ -120,6 +123,15 @@ public class LotService {
         return BidResponse.builder()
                 .userId(bid.getUserId())
                 .bidAmount(bid.getBidAmount())
+                .createdAt(bid.getCreatedAt())
+                .build();
+    }
+
+    private BidPlacedEvent mapToKafkaMessage(Bid bid) {
+        return BidPlacedEvent.builder()
+                .lotId(bid.getLot().getId())
+                .bidAmount(bid.getBidAmount())
+                .bidderId(bid.getUserId())
                 .createdAt(bid.getCreatedAt())
                 .build();
     }

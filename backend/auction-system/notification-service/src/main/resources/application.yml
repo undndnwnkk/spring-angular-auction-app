@@ -15,3 +15,7 @@ spring:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.value.default.type: com.auction.common.BidPlacedEvent
         spring.json.trusted.packages: "*"
+  mongodb:
+    uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:admin@localhost:27017/notifications?authSource=admin}
+    representation:
+      uuid: standard

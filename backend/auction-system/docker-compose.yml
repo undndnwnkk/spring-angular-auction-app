@@ -23,6 +23,17 @@ services:
     volumes:
       - bidding-db-data:/var/lib/postgresql/data
 
+  notification-db:
+    image: mongo:7.0
+    container_name: notification-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${NOTIFICATION_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+    volumes:
+      - ./mongo-data:/data/db
+
   redis:
     image: redis:7-alpine
     container_name: auction-redis
@@ -91,8 +102,10 @@ services:
       - "8083:8083"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATA_MONGODB_URI: mongodb://${NOTIFICATION_DB_USERNAME}:${NOTIFICATION_DB_PASSWORD}@notification-db:27017/notifications?authSource=admin
     depends_on:
       - kafka
+      - notification-db
 
   api-gateway:
     build:

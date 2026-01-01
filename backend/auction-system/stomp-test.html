@@ -2,80 +2,96 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>STOMP Test</title>
+    <title>Auction STOMP Client</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; border-radius: 4px; border: none; cursor: pointer; background: #007bff; color: white; }
+        button:hover { background: #0056b3; }
+        #disconnectBtn { background: #dc3545; }
+        #log { background: #222; color: #00ff00; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll; font-family: monospace; white-space: pre-wrap; }
+        .label { font-weight: bold; display: inline-block; width: 120px; }
+    </style>
 </head>
 <body>
-<h3>STOMP Test Client</h3>
 
-<div>
-    <label>WebSocket URL:</label>
-    <input id="wsUrl" size="40" value="ws://localhost:8080/ws" />
+<h2>🚀 Auction Real-time Control Panel</h2>
+
+<div class="card">
+    <h3>1. Connection Settings</h3>
+    <p>
+        <span class="label">WebSocket URL:</span>
+        <input id="wsUrl" size="40" value="ws://localhost:8080/ws" />
+    </p>
+    <p>
+        <span class="label">My User ID:</span>
+        <input id="myUserId" size="40" placeholder="Enter your UUID" value="11111111-1111-1111-1111-111111111111" />
+        <small>(This ID will be used for private notifications)</small>
+    </p>
     <button id="connectBtn">Connect</button>
     <button id="disconnectBtn">Disconnect</button>
 </div>
 
-<div style="margin-top: 10px;">
-    <label>Lot ID:</label>
-    <input id="lotId" size="40" value="f9f557b0-1db1-4186-9ab3-c26975c63282" />
-    <button id="subscribeBtn">Subscribe to /topic/lot/{id}</button>
+<div class="card">
+    <h3>2. Subscriptions</h3>
+    <p>
+        <span class="label">Lot ID:</span>
+        <input id="lotId" size="40" value="" placeholder="Paste Lot UUID here" />
+        <button id="subscribeLotBtn" style="background: #28a745;">Subscribe to Lot Updates</button>
+    </p>
+    <p>
+        <span class="label">Private:</span>
+        <button id="subscribePrivateBtn" style="background: #6f42c1;">Subscribe to My Notifications</button>
+    </p>
 </div>
 
-<div style="margin-top: 10px;">
-    <label>Send destination:</label>
-    <input id="sendDest" size="40" value="/app/test" />
+<div class="card">
+    <h3>📝 Event Log</h3>
+    <div id="log"></div>
 </div>
-<div style="margin-top: 5px;">
-    <label>Payload (JSON):</label><br/>
-    <textarea id="sendBody" rows="4" cols="60">{ "text": "hello" }</textarea><br/>
-    <button id="sendBtn">SEND</button>
-</div>
-
-<h4>Log</h4>
-<pre id="log" style="border:1px solid #ccc; padding:5px; max-height:300px; overflow:auto;"></pre>
 
 <script src="https://unpkg.com/@stomp/stompjs@6.1.2/bundles/stomp.umd.min.js"></script>
 
 <script>
     const logEl = document.getElementById('log');
-    const wsUrlEl = document.getElementById('wsUrl');
-    const lotIdEl = document.getElementById('lotId');
-    const sendDestEl = document.getElementById('sendDest');
-    const sendBodyEl = document.getElementById('sendBody');
-
     let client = null;
-    let subscription = null;
 
-    function log(msg) {
+    function log(msg, type = 'INFO') {
         const time = new Date().toISOString().substr(11, 8);
-        logEl.textContent += `[${time}] ${msg}\n`;
+        const color = type === 'DEBUG' ? '#888' : (type === 'ERROR' ? '#ff4444' : '#00ff00');
+        const line = `[${time}] [${type}] ${msg}\n`;
+        logEl.innerHTML += `<span style="color: ${color}">${line}</span>`;
         logEl.scrollTop = logEl.scrollHeight;
     }
 
     document.getElementById('connectBtn').onclick = () => {
-        if (client && client.active) {
-            log('Already connected');
-            return;
-        }
+        const userId = document.getElementById('myUserId').value;
+
         client = new StompJs.Client({
-            brokerURL: wsUrlEl.value,
+            brokerURL: document.getElementById('wsUrl').value,
+            connectHeaders: {
+                userId: userId // Наш интерцептор поймает этот заголовок
+            },
             reconnectDelay: 5000,
-            debug: (str) => log('DEBUG ' + str),
+            debug: (str) => console.log(str),
         });
 
         client.onConnect = (frame) => {
-            log('CONNECTED ' + JSON.stringify(frame.headers));
+            log('CONNECTED as ' + userId);
+            log('Session info: ' + JSON.stringify(frame.headers), 'DEBUG');
         };
 
         client.onStompError = (frame) => {
-            log('STOMP ERROR ' + frame.headers['message'] + ' ' + frame.body);
+            log('STOMP ERROR: ' + frame.headers['message'], 'ERROR');
         };
 
         client.onWebSocketError = (event) => {
-            log('WEBSOCKET ERROR ' + event);
+            log('WEBSOCKET ERROR', 'ERROR');
         };
 
         client.activate();
-        log('Connecting...');
+        log('Attempting to connect...');
     };
 
     document.getElementById('disconnectBtn').onclick = () => {
@@ -85,30 +101,29 @@
         }
     };
 
-    document.getElementById('subscribeBtn').onclick = () => {
-        if (!client || !client.active) {
-            log('Not connected');
-            return;
-        }
-        const dest = '/topic/lot/' + lotIdEl.value;
-        if (subscription) {
-            subscription.unsubscribe();
-        }
-        subscription = client.subscribe(dest, (message) => {
-            log('MESSAGE from ' + dest + ': ' + message.body);
+    // Подписка на конкретный лот (Price Updates)
+    document.getElementById('subscribeLotBtn').onclick = () => {
+        const id = document.getElementById('lotId').value;
+        if (!client || !client.active) return log('Error: Connect first!', 'ERROR');
+        if (!id) return log('Error: Enter Lot ID!', 'ERROR');
+
+        const dest = '/topic/lot/' + id;
+        client.subscribe(dest, (message) => {
+            log('🔥 PRICE UPDATE for lot ' + id + ': ' + message.body);
         });
-        log('Subscribed to ' + dest);
+        log('Subscribed to PUBLIC topic: ' + dest);
     };
 
-    document.getElementById('sendBtn').onclick = () => {
-        if (!client || !client.active) {
-            log('Not connected');
-            return;
-        }
-        const dest = sendDestEl.value;
-        const body = sendBodyEl.value;
-        client.publish({ destination: dest, body: body });
-        log('SENT to ' + dest + ': ' + body);
+    // Подписка на личные уведомления (Outbid, etc)
+    document.getElementById('subscribePrivateBtn').onclick = () => {
+        if (!client || !client.active) return log('Error: Connect first!', 'ERROR');
+
+        // В Spring STOMP персональные очереди начинаются с /user
+        const dest = '/user/queue/notifications';
+        client.subscribe(dest, (message) => {
+            log('🔔 PRIVATE NOTIFICATION: ' + message.body);
+        });
+        log('Subscribed to PRIVATE queue: ' + dest);
     };
 </script>
 </body>

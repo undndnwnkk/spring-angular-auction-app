@@ -45,9 +45,15 @@ public class LotService {
         } else throw new IncorrectLotInformationException("Lot is not active");
 
         Lot newLot = lotRepository.save(lot);
+
+        Bid previousLeader = bidRepository.findFirstByLot_IdOrderByBidAmountDesc(newLot.getId())
+                .orElse(null);
+
+        UUID previousLeaderId = (previousLeader != null) ? previousLeader.getUserId() : null;
+
         Bid bid = Bid.builder()
                 .lot(lot)
-                .userId(UUID.randomUUID())
+                .userId(lotRequest.bidderId())
                 .bidAmount(lot.getCurrentPrice())
                 .createdAt(Instant.now())
                 .build();
@@ -61,7 +67,7 @@ public class LotService {
                     String redisValue = newLot.getCurrentPrice().toString();
                     redisTemplate.opsForValue().set(redisKey, redisValue);
 
-                    kafkaTemplate.send("lot-price-updates", mapToKafkaMessage(bid));
+                    kafkaTemplate.send("lot-price-updates", mapToKafkaMessage(bid, previousLeaderId));
                 }
             });
         }
@@ -128,12 +134,13 @@ public class LotService {
                 .build();
     }
 
-    private BidPlacedEvent mapToKafkaMessage(Bid bid) {
+    private BidPlacedEvent mapToKafkaMessage(Bid bid, UUID previousBidderId) {
         return BidPlacedEvent.builder()
                 .lotId(bid.getLot().getId())
                 .bidAmount(bid.getBidAmount())
                 .bidderId(bid.getUserId())
                 .createdAt(bid.getCreatedAt())
+                .previousBidderId(previousBidderId)
                 .build();
     }
 

@@ -19,3 +19,11 @@ spring:
     uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:admin@localhost:27017/notifications?authSource=admin}
     representation:
       uuid: standard
+
+logging:
+  level:
+    org.springframework.messaging: TRACE
+    org.springframework.messaging.simp: TRACE
+    org.springframework.messaging.simp.user: TRACE
+    org.springframework.messaging.simp.broker: TRACE
+    org.springframework.web.socket: TRACE

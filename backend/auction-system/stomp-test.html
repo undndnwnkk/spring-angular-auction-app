@@ -22,7 +22,7 @@
     <h3>1. Connection Settings</h3>
     <p>
         <span class="label">WebSocket URL:</span>
-        <input id="wsUrl" size="40" value="ws://localhost:8080/ws" />
+        <input id="wsUrl" size="40" value="ws://localhost:8083/ws" />
     </p>
     <p>
         <span class="label">My User ID:</span>
@@ -119,11 +119,12 @@
         if (!client || !client.active) return log('Error: Connect first!', 'ERROR');
 
         // В Spring STOMP персональные очереди начинаются с /user
-        const dest = '/user/queue/notifications';
+        const userId = document.getElementById('myUserId').value;
+        const dest = '/topic/user/' + userId;
         client.subscribe(dest, (message) => {
             log('🔔 PRIVATE NOTIFICATION: ' + message.body);
         });
-        log('Subscribed to PRIVATE queue: ' + dest);
+        log('Subscribed to PRIVATE topic: ' + dest);
     };
 </script>
 </body>

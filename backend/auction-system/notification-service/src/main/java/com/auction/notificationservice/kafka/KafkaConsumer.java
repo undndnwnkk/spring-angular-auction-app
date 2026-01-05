@@ -5,12 +5,14 @@ import com.auction.notificationservice.model.Notification;
 import com.auction.notificationservice.model.NotificationType;
 import com.auction.notificationservice.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class KafkaConsumer {
@@ -30,11 +32,11 @@ public class KafkaConsumer {
                 .build();
 
         Notification loserNotification = Notification.builder()
-                .userId(bidPlacedEvent.bidderId())
+                .userId(bidPlacedEvent.previousBidderId())
                 .message("Your bid has been outbid!")
                 .lotId(bidPlacedEvent.lotId())
                 .bidAmount(bidPlacedEvent.bidAmount())
-                .type(NotificationType.RAISED)
+                .type(NotificationType.OUTBID)
                 .createdAt(Instant.now())
                 .read(false)
                 .build();
@@ -43,15 +45,19 @@ public class KafkaConsumer {
         notificationRepository.save(loserNotification);
 
         simpMessagingTemplate.convertAndSend("/topic/lot/" +bidPlacedEvent.lotId(), bidPlacedEvent);
+        log.info("EVENT: lot={}, bidder={}, prev={}",
+                bidPlacedEvent.lotId(),
+                bidPlacedEvent.bidderId(),
+                bidPlacedEvent.previousBidderId());
+
 
         if (bidPlacedEvent.previousBidderId() != null) {
             String message = "Your bid on lot " + bidPlacedEvent.lotId() + " was outbid!";
-            simpMessagingTemplate.convertAndSendToUser(
-                    bidPlacedEvent.previousBidderId().toString(),
-                    "/queue/notifications",
-                    message
-            );
+            String dest = "/topic/user/" + bidPlacedEvent.previousBidderId();
+            log.info("WS: sending OUTBID to {}", dest);
+            simpMessagingTemplate.convertAndSend(dest, message);
+        } else {
+            log.info("WS: previousBidderId is null, skipping");
         }
     }
-
 }

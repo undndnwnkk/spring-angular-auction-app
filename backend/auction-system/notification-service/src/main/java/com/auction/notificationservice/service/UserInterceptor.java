@@ -1,5 +1,6 @@
 package com.auction.notificationservice.service;
 
+import lombok.EqualsAndHashCode;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -18,6 +19,7 @@ public class UserInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
         if (accessor.getCommand() == StompCommand.CONNECT) {
             String userId = accessor.getFirstNativeHeader("userId");
+            System.out.println(">>> STOMP CONNECT, userId header = " + userId);
             UserExample test = new UserExample(userId);
             accessor.setUser(test);
         }
@@ -26,6 +28,7 @@ public class UserInterceptor implements ChannelInterceptor {
     }
 }
 
+@EqualsAndHashCode
 class UserExample implements Principal {
     private final String uuid;
 

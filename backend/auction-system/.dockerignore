@@ -3,3 +3,5 @@
 **/build
 **/out
 .git
+mongo-data
+**/mongo-data

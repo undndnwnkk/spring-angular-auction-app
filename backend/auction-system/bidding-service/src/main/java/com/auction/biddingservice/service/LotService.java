@@ -31,7 +31,7 @@ public class LotService {
     private final KafkaTemplate<String, BidPlacedEvent> kafkaTemplate;
 
     @Transactional
-    public LotResponse placeBid(LotRequest lotRequest) {
+    public LotResponse placeBid(LotRequest lotRequest, String userId) {
         Lot lot = lotRepository.findById(lotRequest.id())
                 .orElseThrow(() -> new IncorrectLotInformationException("Lot not found"));
 
@@ -50,14 +50,24 @@ public class LotService {
                 .orElse(null);
 
         UUID previousLeaderId = (previousLeader != null) ? previousLeader.getUserId() : null;
+        UUID currentUserId;
+        try {
+            currentUserId = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid User ID format: " + userId);
+        }
 
         Bid bid = Bid.builder()
                 .lot(lot)
-                .userId(lotRequest.bidderId())
+                .userId(currentUserId)
                 .bidAmount(lot.getCurrentPrice())
                 .createdAt(Instant.now())
                 .build();
         bidRepository.save(bid);
+        UUID lotId = newLot.getId();
+        BigDecimal bidAmount = bid.getBidAmount();
+        Instant createdAt = bid.getCreatedAt();
+        BigDecimal currentPrice = newLot.getCurrentPrice();
 
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -67,7 +77,15 @@ public class LotService {
                     String redisValue = newLot.getCurrentPrice().toString();
                     redisTemplate.opsForValue().set(redisKey, redisValue);
 
-                    kafkaTemplate.send("lot-price-updates", mapToKafkaMessage(bid, previousLeaderId));
+                    BidPlacedEvent event = BidPlacedEvent.builder()
+                            .lotId(lotId)
+                            .bidAmount(bidAmount)
+                            .bidderId(currentUserId)
+                            .createdAt(createdAt)
+                            .previousBidderId(previousLeaderId)
+                            .build();
+
+                    kafkaTemplate.send("lot-price-updates", event);
                 }
             });
         }
@@ -131,16 +149,6 @@ public class LotService {
                 .userId(bid.getUserId())
                 .bidAmount(bid.getBidAmount())
                 .createdAt(bid.getCreatedAt())
-                .build();
-    }
-
-    private BidPlacedEvent mapToKafkaMessage(Bid bid, UUID previousBidderId) {
-        return BidPlacedEvent.builder()
-                .lotId(bid.getLot().getId())
-                .bidAmount(bid.getBidAmount())
-                .bidderId(bid.getUserId())
-                .createdAt(bid.getCreatedAt())
-                .previousBidderId(previousBidderId)
                 .build();
     }
 

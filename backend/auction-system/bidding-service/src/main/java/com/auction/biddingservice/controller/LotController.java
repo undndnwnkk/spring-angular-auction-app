@@ -34,8 +34,11 @@ public class LotController {
     }
 
     @PostMapping("/place")
-    public ResponseEntity<LotResponse> placeBid(@Valid @RequestBody LotRequest lotRequest) {
-        return ResponseEntity.ok(lotService.placeBid(lotRequest));
+    public ResponseEntity<LotResponse> placeBid(@Valid @RequestBody LotRequest lotRequest, @RequestHeader(value = "X-User-Id", required = true) String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalArgumentException("User ID header is missing or empty");
+        }
+        return ResponseEntity.ok(lotService.placeBid(lotRequest, userId));
     }
 
     @PostMapping

@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: api-gateway
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:8080/realms/auction-realm/protocol/openid-connect/certs
+          issuer-uri: http://localhost:8180/realms/auction-realm
+
   cloud:
     gateway:
       server:
@@ -15,16 +23,21 @@ spring:
                 - Path=/api/v1/catalog/**
               filters:
                 - RewritePath=/api/v1/catalog/(?<segment>.*), /api/v1/$\{segment}
+                - UserId
 
             - id: bidding-route
               uri: http://bidding-service:8082
               predicates:
                 - Path=/api/v1/bidding/**
+              filters:
+                - UserId
 
             - id: notification-ws-route
               uri: http://notification-service:8083
               predicates:
                 - Path=/ws/**
+              filters:
+                - UserId
           globalcors:
             cors-configurations:
               '[/**]':

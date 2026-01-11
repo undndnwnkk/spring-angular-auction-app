@@ -10,6 +10,8 @@ services:
       POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
     volumes:
       - catalog-db-data:/var/lib/postgresql/data
+    networks:
+      - auction-network
 
   bidding-db:
     image: postgres:16.11-alpine3.23
@@ -22,6 +24,8 @@ services:
       POSTGRES_PASSWORD: ${BIDDING_DB_PASSWORD}
     volumes:
       - bidding-db-data:/var/lib/postgresql/data
+    networks:
+      - auction-network
 
   notification-db:
     image: mongo:7.0
@@ -33,12 +37,16 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
     volumes:
       - ./mongo-data:/data/db
+    networks:
+      - auction-network
 
   redis:
     image: redis:7-alpine
     container_name: auction-redis
     ports:
       - "6379:6379"
+    networks:
+      - auction-network
 
   kafka:
     image: apache/kafka:3.9.0
@@ -57,6 +65,19 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       CLUSTER_ID: "4L6699E2SG-9AnHqnNo_7Q"
+    networks:
+      - auction-network
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    ports:
+      - "8180:8080"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_NAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS}
+    command: start-dev
+    networks:
+      - auction-network
 
   catalog-service:
     build:
@@ -73,6 +94,8 @@ services:
       - catalog-db
     env_file:
       - .env
+    networks:
+      - auction-network
 
   bidding-service:
     build:
@@ -92,6 +115,8 @@ services:
       - kafka
     env_file:
       - .env
+    networks:
+      - auction-network
 
   notification-service:
     build:
@@ -102,10 +127,12 @@ services:
       - "8083:8083"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATA_MONGODB_URI: mongodb://${NOTIFICATION_DB_USERNAME}:${NOTIFICATION_DB_PASSWORD}@notification-db:27017/notifications?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://${NOTIFICATION_DB_USERNAME}:${NOTIFICATION_DB_PASSWORD}@notification-db:27017/${NOTIFICATION_DB_NAME}?authSource=admin
     depends_on:
       - kafka
       - notification-db
+    networks:
+      - auction-network
 
   api-gateway:
     build:
@@ -114,12 +141,23 @@ services:
     container_name: gateway-service
     ports:
       - "8080:8080"
+    environment:
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+    env_file:
+      - .env
     depends_on:
       - catalog-service
       - bidding-service
       - notification-service
+      - keycloak
+    networks:
+      - auction-network
 
 
 volumes:
   catalog-db-data:
   bidding-db-data:
+
+networks:
+  auction-network:
+    driver: bridge
